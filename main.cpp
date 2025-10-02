@@ -1,8 +1,7 @@
-//#include <QtCore/QCoreApplication>
 #include <stdio.h>
 #include <stdlib.h>
 
-// Función para leer un archivo binario y cargarlo en memoria dinámica
+// ======== LECTURA DE ARCHIVO ========
 unsigned char* leerArchivo(const char* nombreArchivo, int* longitud) {
     FILE* archivo = fopen(nombreArchivo, "rb");
     if (archivo == NULL) {
@@ -34,14 +33,11 @@ unsigned char* leerArchivo(const char* nombreArchivo, int* longitud) {
     return buffer;
 }
 
-// ---------- FUNCIONES AUXILIARES ----------
-
-// Rotar bits a la derecha (inverso de rotación izquierda)
+// ======== ROTACIÓN Y DESENCRIPTADO ========
 unsigned char rotarDerecha(unsigned char byte, int n) {
     return (byte >> n) | (byte << (8 - n));
 }
 
-// Desencriptar mensaje (rotación derecha + XOR inversa)
 void desencriptar(unsigned char* entrada, unsigned char* salida, int longitud, int n, unsigned char k) {
     for (int i = 0; i < longitud; ++i) {
         unsigned char x = entrada[i] ^ k;
@@ -49,13 +45,16 @@ void desencriptar(unsigned char* entrada, unsigned char* salida, int longitud, i
     }
 }
 
-// Descompresión tentativa con RLE
+// ======== DESCOMPRESIÓN RLE ========
 int descomprimirRLE(unsigned char* entrada, int longitudEntrada, unsigned char* salida, int tamMaxSalida) {
     int i = 0, j = 0;
-    while (i + 1 < longitudEntrada && j < tamMaxSalida) {
-        unsigned char caracter = entrada[i];
-        unsigned char repeticiones = entrada[i + 1];
-        i += 2;
+    while (i + 2 <= longitudEntrada && j < tamMaxSalida) {
+        // Leer 3 bytes: ignorar el primero (aparentemente siempre 00), luego repeticiones y letra
+        unsigned char dummy = entrada[i];        // 00 (ignorado)
+        unsigned char repeticiones = entrada[i + 1];  // cantidad
+        unsigned char caracter = entrada[i + 2]; // letra
+
+        i += 3;
 
         for (int r = 0; r < repeticiones && j < tamMaxSalida; ++r) {
             salida[j++] = caracter;
@@ -64,169 +63,65 @@ int descomprimirRLE(unsigned char* entrada, int longitudEntrada, unsigned char* 
     return j;
 }
 
-// Búsqueda del fragmento dentro de un texto
-bool contieneFragmento(unsigned char* texto, int lenTexto, unsigned char* fragmento, int lenFragmento) {
-    for (int i = 0; i <= lenTexto - lenFragmento; ++i) {
-        bool coincide = true;
-        for (int j = 0; j < lenFragmento; ++j) {
-            if (texto[i + j] != fragmento[j]) {
-                coincide = false;
-                break;
-            }
-        }
-        if (coincide) return true;
-    }
-    return false;
-}
-
-// Descompresión tentativa con LZ78 (simple)
-int descomprimirLZ78(unsigned char* entrada, int longitudEntrada, unsigned char* salida, int tamMaxSalida) {
-    // Implementación básica para detección, no óptima
-    unsigned char diccionario[256][256]; // máximo 256 entradas, 256 chars por entrada
-    int longitudes[256]; // longitud de cada entrada
-    int numEntradas = 0;
-
-    int i = 0, j = 0;
-    while (i < longitudEntrada && j < tamMaxSalida) {
-        unsigned char indice = entrada[i++];
-        unsigned char siguiente = entrada[i++];
-
-        if (indice == 0) {
-            if (j < tamMaxSalida) salida[j++] = siguiente;
-
-            // Guardar nueva entrada
-            diccionario[numEntradas][0] = siguiente;
-            longitudes[numEntradas] = 1;
-            numEntradas++;
-        } else if (indice <= numEntradas) {
-            int len = longitudes[indice - 1];
-
-            for (int k = 0; k < len && j < tamMaxSalida; ++k) {
-                salida[j] = diccionario[indice - 1][k];
-                diccionario[numEntradas][k] = salida[j];
-                j++;
-            }
-
-            if (j < tamMaxSalida) {
-                salida[j] = siguiente;
-                diccionario[numEntradas][len] = siguiente;
-                j++;
-            }
-
-            longitudes[numEntradas] = len + 1;
-            numEntradas++;
-        } else {
-            break; // índice inválido
-        }
-    }
-
-    return j;
-}
-
-void desencriptarSoloXOR(unsigned char* entrada, unsigned char* salida, int longitud, unsigned char k) {
-    for (int i = 0; i < longitud; ++i) {
-        salida[i] = entrada[i] ^ k;
-    }
-}
-
-
+// ======== FUNCIÓN PRINCIPAL ========
 int main(int argc, char *argv[])
 {
-    //QCoreApplication app(argc, argv);
-
     const char* rutaMensaje = "data/Encriptado1.txt";
-    const char* rutaFragmento = "data/pista1.txt";
-
     int longitudMensaje = 0;
-    int longitudFragmento = 0;
 
-    // Leer archivos
+    // Leer archivo encriptado
     unsigned char* mensaje = leerArchivo(rutaMensaje, &longitudMensaje);
     if (mensaje == NULL) return -1;
 
-    unsigned char* fragmento = leerArchivo(rutaFragmento, &longitudFragmento);
-    if (fragmento == NULL) {
-        delete[] mensaje;
-        return -1;
+    // Parámetros conocidos
+    const int rotacion = 3;
+    const unsigned char clave = 0x5A;
+
+    // Mostrar configuración
+    printf("** Encriptado1.txt **\n");
+    printf("Compresion: RLE\n");
+    printf("Rotacion: %d\n", rotacion);
+    printf("Key= 0x%02X\n", clave);
+
+    // Desencriptar
+    unsigned char* desencriptado = new unsigned char[longitudMensaje];
+    desencriptar(mensaje, desencriptado, longitudMensaje, rotacion, clave);
+
+    // DEBUG: Ver primeros bytes desencriptados
+    printf("\nPrimeros bytes desencriptados (antes de RLE):\n");
+    for (int i = 0; i < 20 && i < longitudMensaje; ++i)
+        printf("%02X ", desencriptado[i]);
+    printf("\n");
+
+    printf("Como texto (puede no ser legible):\n");
+    for (int i = 0; i < 20 && i < longitudMensaje; ++i)
+        printf("%c", desencriptado[i]);
+    printf("\n");
+
+    // Descomprimir
+    unsigned char* descomprimido = new unsigned char[50000]; // Tamaño estimado
+    int longitudDescomprimido = descomprimirRLE(desencriptado, longitudMensaje, descomprimido, 50000);
+
+    // Mostrar resultado
+    printf("\nMensaje final descomprimido y desencriptado:\n");
+    for (int i = 0; i < longitudDescomprimido; ++i)
+        printf("%c", descomprimido[i]);
+    printf("\n");
+
+    // Guardar en archivo
+    FILE* archivoSalida = fopen("mensaje1.txt", "wb");
+    if (archivoSalida) {
+        fwrite(descomprimido, 1, longitudDescomprimido, archivoSalida);
+        fclose(archivoSalida);
+        printf("\nMensaje guardado en mensaje1.txt\n");
+    } else {
+        printf("Error: No se pudo crear mensaje1.txt\n");
     }
-
-    // Confirmación
-    printf("Archivos cargados y leídos con éxito.\n");
-
-    printf("Analizando compresión...\n");
-
-    bool encontrado = false;
-
-    for (int k = 0; k <= 255 && !encontrado; ++k) {
-    unsigned char* salida = new unsigned char[longitudMensaje];
-    desencriptarSoloXOR(mensaje, salida, longitudMensaje, (unsigned char)k);
-
-    // Verificar sin descomprimir
-    if (contieneFragmento(salida, longitudMensaje, fragmento, longitudFragmento)) {
-        printf("El archivo NO está comprimido, y solo se usó XOR como encriptación.\n");
-        printf("Clave K = %d\n", k);
-        encontrado = true;
-    }
-
-    // Verificar RLE
-    if (!encontrado) {
-        unsigned char* salidaRLE = new unsigned char[50000];
-        int lenRLE = descomprimirRLE(salida, longitudMensaje, salidaRLE, 50000);
-
-        if (contieneFragmento(salidaRLE, lenRLE, fragmento, longitudFragmento)) {
-            printf("Método de compresión detectado: RLE, y solo se usó XOR.\n");
-            printf("Clave K = %d\n", k);
-            encontrado = true;
-        }
-
-        delete[] salidaRLE;
-    }
-
-    // Verificar LZ78
-    if (!encontrado) {
-        unsigned char* salidaLZ = new unsigned char[50000];
-        int lenLZ = descomprimirLZ78(salida, longitudMensaje, salidaLZ, 50000);
-
-        if (contieneFragmento(salidaLZ, lenLZ, fragmento, longitudFragmento)) {
-            printf("Método de compresión detectado: LZ78, y solo se usó XOR.\n");
-            printf("Clave K = %d\n", k);
-            encontrado = true;
-        }
-
-        delete[] salidaLZ;
-    }
-
-    delete[] salida;
-}
-
-
-    if (!encontrado) {
-        printf("No se pudo determinar el método de compresión o el mensaje desencriptado no contiene el fragmento.\n");
-    }
-
-    printf("Fragmento en HEX: ");
-for (int i = 0; i < longitudFragmento; ++i)
-    printf("%02X ", fragmento[i]);
-printf("\n");
-
-printf("Fragmento como texto: ");
-for (int i = 0; i < longitudFragmento; ++i)
-    printf("%c", fragmento[i]);
-printf("\n");
-
-
-printf("Primeros bytes del archivo encriptado:\n");
-for (int i = 0; i < 20 && i < longitudMensaje; ++i) {
-    printf("%02X ", mensaje[i]);
-}
-printf("\n");
-
-    
-
 
     // Liberar memoria
     delete[] mensaje;
-    delete[] fragmento;
+    delete[] desencriptado;
+    delete[] descomprimido;
 
     return 0;
 }
