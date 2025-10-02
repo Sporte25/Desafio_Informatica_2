@@ -1,3 +1,29 @@
 Comandos C++:
 g++ -o desencriptador.exe main.cpp
 .\desencriptador.exe
+
+git init                    # Crear un repositorio Git nuevo en la carpeta actual
+git clone <url>             # Clonar un repositorio remoto a tu máquina
+git status                  # Ver estado de archivos (modificados, staged, etc.)
+git add <archivo>           # Añadir archivo(s) al área de preparación (staging)
+git add .                   # Añadir todos los cambios actuales al staging
+git commit -m "mensaje"     # Confirmar (commit) los cambios con un mensaje
+git log                    # Mostrar historial de commits
+git diff                   # Ver diferencias entre archivos modificados
+git branch                 # Listar ramas locales
+git branch <nombre>        # Crear una rama nueva
+git checkout <rama>        # Cambiar a otra rama
+git checkout -b <rama>     # Crear y cambiar a una rama nueva
+git merge <rama>           # Fusionar otra rama en la rama actual
+git pull                   # Traer y combinar cambios desde el repositorio remoto
+git push                   # Subir cambios locales al repositorio remoto
+git remote -v              # Listar repositorios remotos configurados
+git stash                  # Guardar cambios temporales sin hacer commit
+git stash pop              # Recuperar los cambios guardados en stash
+
+git reset --hard <commit>           # Volver a un commit anterior (¡cuidado, borra cambios!)
+git revert <commit>                  # Crear un nuevo commit que deshace un commit anterior
+git fetch                           # Descargar cambios remotos sin fusionarlos
+git remote add origin <url>          # Añadir un repositorio remoto
+git push --set-upstream origin <rama>  # Establecer rama remota para hacer push sin especificar
+git reflog                          # Mostrar historial de referencias y movimientos
